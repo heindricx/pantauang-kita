@@ -3,12 +3,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import * as echarts from "echarts";
+import { fetchPetaData } from "../actions";
 
-function MapComponent({ mapData, title }: { mapData: Record<string, unknown>, title: string }) {
+function MapComponent({ mapData, title, dbData }: { mapData: Record<string, unknown>, title: string, dbData: { name: string, value: number }[] }) {
   const chartRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!chartRef.current || !mapData) return;
+    if (!chartRef.current || !mapData || dbData.length === 0) return;
     
     // Register the map with a unique name based on the title
     const mapName = title === 'Provinsi' ? 'indonesia-prov' : 'indonesia-kab';
@@ -16,11 +17,20 @@ function MapComponent({ mapData, title }: { mapData: Record<string, unknown>, ti
 
     const chartInstance = echarts.init(chartRef.current);
     
-    // Generate some mock risk data based on the map features
-    const data = (mapData.features as Array<Record<string, unknown>>).map((feature: Record<string, any>) => ({
-      name: feature.properties.PROVINSI || feature.properties.WADMKK || feature.properties.name || "Unknown",
-      value: Math.floor(Math.random() * 100)
-    }));
+    // Use real data from DB
+    const data = (mapData.features as Array<Record<string, unknown>>).map((feature: Record<string, any>) => {
+      const geoName = feature.properties.PROVINSI || feature.properties.WADMKK || feature.properties.name || "Unknown";
+      const matched = dbData.find(d => 
+        d.name.toLowerCase() === geoName.toLowerCase() || 
+        d.name.toLowerCase().includes(geoName.toLowerCase()) || 
+        geoName.toLowerCase().includes(d.name.toLowerCase())
+      );
+      
+      return {
+        name: geoName,
+        value: matched ? Math.round(matched.value) : 0
+      };
+    });
 
     const option: echarts.EChartsOption = {
       title: {
@@ -83,27 +93,21 @@ function MapComponent({ mapData, title }: { mapData: Record<string, unknown>, ti
       chartInstance.dispose();
       window.removeEventListener("resize", handleResize);
     };
-  }, [mapData, title]);
+  }, [mapData, title, dbData]);
 
   return <div ref={chartRef} className="w-full h-[600px] rounded-2xl overflow-hidden shadow-inner border border-slate-200 bg-slate-50/50" />;
 }
 
 export default function PetaPage() {
-  const [level, setLevel] = useState<'Provinsi' | 'Kabupaten'>('Provinsi');
+  const [view, setView] = useState<'provinsi' | 'kabupaten'>('provinsi');
   const [provinsiData, setProvinsiData] = useState<Record<string, unknown> | null>(null);
   const [kabupatenData, setKabupatenData] = useState<Record<string, unknown> | null>(null);
+  const [dbData, setDbData] = useState<{provinsi: any[], kabupaten: any[]}>({ provinsi: [], kabupaten: [] });
 
   useEffect(() => {
-    // Load GeoJSON data from public folder
-    fetch('/provinsi.json')
-      .then(res => res.json())
-      .then(data => setProvinsiData(data))
-      .catch(err => console.error("Error loading provinsi geojson:", err));
-
-    fetch('/kabupaten.json')
-      .then(res => res.json())
-      .then(data => setKabupatenData(data))
-      .catch(err => console.error("Error loading kabupaten geojson:", err));
+    fetch('/provinsi.json').then(res => res.json()).then(setProvinsiData).catch(err => console.error("Error loading provinsi geojson:", err));
+    fetch('/kabupaten.json').then(res => res.json()).then(setKabupatenData).catch(err => console.error("Error loading kabupaten geojson:", err));
+    fetchPetaData().then(setDbData).catch(console.error);
   }, []);
 
   return (
@@ -116,26 +120,29 @@ export default function PetaPage() {
 
         <div className="flex bg-slate-100 p-1 rounded-xl w-fit">
           <button 
-            onClick={() => setLevel('Provinsi')}
-            className={`px-6 py-2 rounded-lg text-sm font-medium transition-all ${level === 'Provinsi' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            onClick={() => setView('provinsi')}
+            className={`px-6 py-2 rounded-lg text-sm font-medium transition-all ${view === 'provinsi' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
           >
             Provinsi
           </button>
           <button 
-            onClick={() => setLevel('Kabupaten')}
-            className={`px-6 py-2 rounded-lg text-sm font-medium transition-all ${level === 'Kabupaten' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            onClick={() => setView('kabupaten')}
+            className={`px-6 py-2 rounded-lg text-sm font-medium transition-all ${view === 'kabupaten' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
           >
             Kabupaten/Kota
           </button>
         </div>
       </div>
 
-      <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
-        {level === 'Provinsi' && (
-          provinsiData ? <MapComponent mapData={provinsiData} title="Provinsi" /> : <div className="h-[600px] flex items-center justify-center text-slate-500">Memuat peta provinsi...</div>
-        )}
-        {level === 'Kabupaten' && (
-          kabupatenData ? <MapComponent mapData={kabupatenData} title="Kabupaten" /> : <div className="h-[600px] flex items-center justify-center text-slate-500">Memuat peta kabupaten...</div>
+      <div className="bg-white rounded-3xl shadow-sm border border-slate-200 p-4 md:p-8">
+        {view === 'provinsi' && provinsiData ? (
+          <MapComponent mapData={provinsiData} title="Provinsi" dbData={dbData.provinsi} />
+        ) : view === 'kabupaten' && kabupatenData ? (
+          <MapComponent mapData={kabupatenData} title="Kabupaten/Kota" dbData={dbData.kabupaten} />
+        ) : (
+          <div className="flex items-center justify-center h-[600px] text-slate-400">
+            Memuat peta...
+          </div>
         )}
       </div>
     </main>

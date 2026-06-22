@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as echarts from "echarts";
+import { fetchInfografisData } from "../actions";
 
 function ChartComponent({ option, style }: { option: echarts.EChartsOption, style?: React.CSSProperties }) {
   const chartRef = useRef<HTMLDivElement>(null);
@@ -29,6 +30,17 @@ function ChartComponent({ option, style }: { option: echarts.EChartsOption, styl
 
 export default function InfografisPage() {
   const commonFont = '"Inter", sans-serif';
+  const [data, setData] = useState<{
+    riskDistribution: {name: string, value: number}[], 
+    trend: {bulan: number, tinggi: number, menengah: number, rendah: number}[], 
+    bar: {name: string, avgRisk: number}[]
+  }>({
+    riskDistribution: [], trend: [], bar: []
+  });
+
+  useEffect(() => {
+    fetchInfografisData().then(setData).catch(console.error);
+  }, []);
 
   const riskDistributionOption: echarts.EChartsOption = {
     tooltip: { 
@@ -67,12 +79,15 @@ export default function InfografisPage() {
           }
         },
         labelLine: { show: false },
-        data: [
-          { value: 1048000, name: 'Rendah', itemStyle: { color: '#10b981' } },
-          { value: 735000, name: 'Menengah Rendah', itemStyle: { color: '#facc15' } },
-          { value: 580000, name: 'Menengah Tinggi', itemStyle: { color: '#f97316' } },
-          { value: 484000, name: 'Tinggi', itemStyle: { color: '#ef4444' } }
-        ]
+        data: data.riskDistribution.map(item => ({
+          value: item.value,
+          name: item.name,
+          itemStyle: { 
+            color: item.name === 'Rendah' ? '#10b981' : 
+                   item.name === 'Menengah Rendah' || item.name === 'Sedang' ? '#facc15' : 
+                   item.name === 'Menengah Tinggi' || item.name === 'Tinggi' ? '#f97316' : '#ef4444' 
+          }
+        }))
       }
     ]
   };
@@ -95,7 +110,7 @@ export default function InfografisPage() {
     xAxis: { 
       type: 'category', 
       boundaryGap: false, 
-      data: ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul'],
+      data: data.trend.map(t => t.bulan.toString()),
       axisLine: { show: false },
       axisTick: { show: false },
       axisLabel: { fontFamily: commonFont, color: '#94a3b8', margin: 16 }
@@ -112,7 +127,7 @@ export default function InfografisPage() {
         smooth: 0.4, 
         symbolSize: 0,
         lineStyle: { width: 4 },
-        data: [120, 132, 101, 134, 90, 230, 210], 
+        data: data.trend.map(t => t.tinggi), 
         itemStyle: { color: '#ef4444' } 
       },
       { 
@@ -121,7 +136,7 @@ export default function InfografisPage() {
         smooth: 0.4, 
         symbolSize: 0,
         lineStyle: { width: 4 },
-        data: [220, 182, 191, 234, 290, 330, 310], 
+        data: data.trend.map(t => t.menengah), 
         itemStyle: { color: '#facc15' } 
       },
       { 
@@ -130,7 +145,7 @@ export default function InfografisPage() {
         smooth: 0.4, 
         symbolSize: 0,
         lineStyle: { width: 4 },
-        data: [150, 232, 201, 154, 190, 330, 410], 
+        data: data.trend.map(t => t.rendah), 
         itemStyle: { color: '#10b981' } 
       }
     ]
@@ -154,7 +169,7 @@ export default function InfografisPage() {
     },
     yAxis: { 
       type: 'category', 
-      data: ['Konstruksi', 'Barang', 'Jasa Konsultansi', 'Jasa Lainnya'],
+      data: data.bar.map(b => b.name),
       axisLine: { show: false },
       axisTick: { show: false },
       axisLabel: { fontFamily: commonFont, color: '#64748b', margin: 16, fontWeight: 500 }
@@ -164,7 +179,7 @@ export default function InfografisPage() {
         name: 'Rata-rata Skor Risiko',
         type: 'bar',
         barWidth: '40%',
-        data: [78.5, 45.2, 32.1, 25.8],
+        data: data.bar.map(b => b.avgRisk),
         itemStyle: {
           borderRadius: [0, 8, 8, 0],
           color: new echarts.graphic.LinearGradient(1, 0, 0, 0, [

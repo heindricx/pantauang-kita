@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, ShieldAlert, Activity, Database, FileText } from "lucide-react";
+import { ArrowRight, ShieldAlert, Database, FileText } from "lucide-react";
 import { motion } from "framer-motion";
 
 export default function Home() {

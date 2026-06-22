@@ -1,56 +1,65 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import { ChevronLeft, ChevronRight, Search, Filter, ChevronDown, ChevronUp } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
-// Mock data generator since we have 3 million rows theoretically
-const generateMockData = (page: number, pageSize: number) => {
-  const data = [];
-  const startIndex = (page - 1) * pageSize;
-  const categories = ["Rendah", "Menengah Rendah", "Menengah Tinggi", "Tinggi"];
-  const instansi = ["Kementerian PUPR", "Kementerian Kesehatan", "Pemerintah Provinsi Jawa Barat", "Pemerintah Kota Surabaya", "Kementerian Pertahanan"];
-  const metode = ["Tender", "Pengadaan Langsung", "E-Purchasing", "Penunjukan Langsung"];
-  
-  for (let i = 0; i < pageSize; i++) {
-    const id = startIndex + i + 1;
-    const score = (Math.random() * 100).toFixed(2);
-    const catIdx = Math.min(3, Math.floor(parseFloat(score) / 25));
-    data.push({
-      id,
-      paket: `Paket Pekerjaan Konstruksi dan Pengadaan Barang/Jasa Proyek ${id} untuk Pembangunan Infrastruktur Strategis Nasional Tahun Anggaran Berjalan di Wilayah Prioritas`,
-      dalamNegeri: Math.random() > 0.2 ? "Ya" : "Tidak",
-      jenisPengadaan: ["Barang", "Pekerjaan Konstruksi", "Jasa Konsultansi", "Jasa Lainnya"][Math.floor(Math.random() * 4)],
-      metode: metode[Math.floor(Math.random() * metode.length)],
-      lembaga: instansi[Math.floor(Math.random() * instansi.length)],
-      satker: `Satuan Kerja Wilayah ${Math.floor(Math.random() * 10) + 1}`,
-      lokasi: ["Jakarta", "Bandung", "Surabaya", "Medan", "Makassar"][Math.floor(Math.random() * 5)],
-      pagu: new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR" }).format(Math.random() * 10000000000 + 50000000),
-      waktu: `202${Math.floor(Math.random() * 4) + 3}-${String(Math.floor(Math.random() * 12) + 1).padStart(2, '0')}`,
-      sumberDana: ["APBN", "APBD", "PHLN"][Math.floor(Math.random() * 3)],
-      isUMKM: Math.random() > 0.5 ? "Ya" : "Tidak",
-      uraianPekerjaan: `Uraian detail untuk pekerjaan proyek ke-${id} yang mencakup berbagai aspek teknis seperti penyediaan material, tenaga kerja ahli, alat berat, dan pengawasan berkala hingga serah terima akhir pekerjaan. Proyek ini sangat krusial.`,
-      spesifikasi: "Sesuai Kerangka Acuan Kerja (KAK) standar ISO 9001:2015 dan standar SNI bahan bangunan konstruksi berkelanjutan.",
-      ownerType: ["Pemerintah Pusat", "Pemerintah Daerah", "BUMN"][Math.floor(Math.random() * 3)],
-      p10: (parseFloat(score) * 0.8).toFixed(2),
-      p90: (parseFloat(score) * 1.2).toFixed(2),
-      skorRisiko: score,
-      kategori: categories[catIdx]
-    });
-  }
-  return data;
-};
+import { fetchDataList } from "../actions";
+
+interface DataItem {
+  id: string;
+  paket: string;
+  dalamNegeri: string;
+  jenisPengadaan: string;
+  metode: string;
+  lembaga: string;
+  satker: string;
+  lokasi: string;
+  pagu: string;
+  waktu: string;
+  sumberDana: string;
+  isUMKM: string;
+  uraianPekerjaan: string;
+  spesifikasi: string;
+  ownerType: string;
+  p10: string;
+  p90: string;
+  skorRisiko: string;
+  kategori: string;
+}
 
 export default function DataPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
-  const [expandedRow, setExpandedRow] = useState<number | null>(null);
-  const totalData = 3000000;
-  const totalPages = Math.ceil(totalData / pageSize);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [expandedRow, setExpandedRow] = useState<string | null>(null);
+  const [data, setData] = useState<DataItem[]>([]);
+  const [totalData, setTotalData] = useState(0);
+  const [loading, setLoading] = useState(true);
 
-  const data = useMemo(() => generateMockData(page, pageSize), [page, pageSize]);
+  const totalPages = Math.ceil(totalData / pageSize) || 1;
 
-  const toggleRow = (id: number) => {
+  useEffect(() => {
+    async function loadData() {
+      setLoading(true);
+      try {
+        const result = await fetchDataList(page, pageSize, searchQuery);
+        setData(result.data);
+        setTotalData(result.totalData);
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    const timer = setTimeout(() => {
+      loadData();
+    }, 300); // debounce search
+    
+    return () => clearTimeout(timer);
+  }, [page, pageSize, searchQuery]);
+
+  const toggleRow = (id: string) => {
     if (expandedRow === id) {
       setExpandedRow(null);
     } else {
@@ -71,7 +80,12 @@ export default function DataPage() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input 
               type="text" 
-              placeholder="Cari pengadaan..." 
+              placeholder="Cari paket / lembaga..." 
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setPage(1);
+              }}
               className="font-sans pl-9 pr-4 py-2 rounded-xl border border-slate-200 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm w-full md:w-64 transition-shadow"
             />
           </div>
@@ -97,9 +111,9 @@ export default function DataPage() {
                 <th className="px-6 py-4">Waktu</th>
               </tr>
             </thead>
-            <tbody>
-              {data.map((item) => (
-                <React.Fragment key={item.id}>
+            <tbody className={loading ? "opacity-50 pointer-events-none" : ""}>
+              {data.map((item, index) => (
+                <React.Fragment key={item.id + index}>
                   <tr 
                     onClick={() => toggleRow(item.id)}
                     className={`border-b border-slate-100 transition-colors cursor-pointer ${expandedRow === item.id ? 'bg-blue-50/50' : 'hover:bg-slate-50'}`}

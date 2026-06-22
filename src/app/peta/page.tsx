@@ -52,14 +52,12 @@ function MapComponent({ mapData, title, dbData }: { mapData: Record<string, unkn
       },
       visualMap: {
         type: 'piecewise',
-        pieces: [
-          { min: 75, max: 100, label: 'Anomali Ekstrem', color: '#ef4444' },
-          { min: 50, max: 74.99, label: 'Tinggi', color: '#f97316' },
-          { min: 35, max: 49.99, label: 'Sedang', color: '#facc15' },
-          { min: 0, max: 34.99, label: 'Rendah', color: '#10b981' }
-        ],
+        splitNumber: 4,
         realtime: false,
         calculable: true,
+        inRange: {
+          color: ['#10b981', '#facc15', '#f97316', '#ef4444']
+        },
         textStyle: { fontFamily: '"Inter", sans-serif' }
       },
       series: [

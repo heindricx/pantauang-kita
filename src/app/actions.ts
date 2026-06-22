@@ -79,7 +79,7 @@ export async function fetchPetaData() {
   }
 }
 
-export async function fetchDataList(page: number, pageSize: number, search: string) {
+export async function fetchDataList(page: number, pageSize: number, search: string, categoryFilter: string = "", sortBy: string = "") {
   try {
     const offset = (page - 1) * pageSize;
     let baseQuery = `FROM procurement_anomalies`;
@@ -96,7 +96,27 @@ export async function fetchDataList(page: number, pageSize: number, search: stri
       searchParams.push(likeSearch, likeSearch);
     }
 
-    const dataQuery = `SELECT * ${baseQuery} ORDER BY skor_risiko DESC LIMIT ${pageSize} OFFSET ${offset}`;
+    if (categoryFilter && categoryFilter !== "Semua") {
+      const condition = ` AND kategori_risiko = ?`;
+      if (baseQuery === `FROM procurement_anomalies`) {
+        baseQuery += ` WHERE kategori_risiko = ?`;
+        countQuery += ` WHERE kategori_risiko = ?`;
+      } else {
+        baseQuery += condition;
+        countQuery += condition;
+      }
+      params.push(categoryFilter);
+      searchParams.push(categoryFilter);
+    }
+
+    let orderByClause = "ORDER BY skor_risiko DESC";
+    if (sortBy === "risk_asc") orderByClause = "ORDER BY skor_risiko ASC";
+    if (sortBy === "pagu_desc") orderByClause = "ORDER BY pagu DESC";
+    if (sortBy === "pagu_asc") orderByClause = "ORDER BY pagu ASC";
+    if (sortBy === "waktu_desc") orderByClause = "ORDER BY tahun_pemilihan DESC, bulan_pemilihan DESC";
+    if (sortBy === "waktu_asc") orderByClause = "ORDER BY tahun_pemilihan ASC, bulan_pemilihan ASC";
+
+    const dataQuery = `SELECT * ${baseQuery} ${orderByClause} LIMIT ${pageSize} OFFSET ${offset}`;
 
     const [[countResult]] = await pool.execute<RowDataPacket[]>(countQuery, searchParams);
     const [rows] = await pool.execute<RowDataPacket[]>(dataQuery, params);

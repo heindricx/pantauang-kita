@@ -51,14 +51,16 @@ function MapComponent({ mapData, title, dbData }: { mapData: Record<string, unkn
         extraCssText: 'box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1); border-radius: 12px;'
       },
       visualMap: {
-        min: 0,
-        max: 100,
-        text: ['Tinggi', 'Rendah'],
+        type: 'piecewise',
+        pieces: [
+          { min: 75, max: 100, label: 'Anomali Ekstrem', color: '#ef4444' },
+          { min: 50, max: 74.99, label: 'Tinggi', color: '#f97316' },
+          { min: 35, max: 49.99, label: 'Sedang', color: '#facc15' },
+          { min: 0, max: 34.99, label: 'Rendah', color: '#10b981' }
+        ],
         realtime: false,
         calculable: true,
-        inRange: {
-          color: ['#10b981', '#facc15', '#f97316', '#ef4444']
-        }
+        textStyle: { fontFamily: '"Inter", sans-serif' }
       },
       series: [
         {

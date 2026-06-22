@@ -32,6 +32,8 @@ export default function DataPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [searchQuery, setSearchQuery] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("Semua");
+  const [sortBy, setSortBy] = useState("risk_desc");
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [data, setData] = useState<DataItem[]>([]);
   const [totalData, setTotalData] = useState(0);
@@ -43,7 +45,7 @@ export default function DataPage() {
     async function loadData() {
       setLoading(true);
       try {
-        const result = await fetchDataList(page, pageSize, searchQuery);
+        const result = await fetchDataList(page, pageSize, searchQuery, categoryFilter, sortBy);
         setData(result.data);
         setTotalData(result.totalData);
       } catch (error) {
@@ -57,7 +59,7 @@ export default function DataPage() {
     }, 300); // debounce search
     
     return () => clearTimeout(timer);
-  }, [page, pageSize, searchQuery]);
+  }, [page, pageSize, searchQuery, categoryFilter, sortBy]);
 
   const toggleRow = (id: string) => {
     if (expandedRow === id) {
@@ -89,10 +91,43 @@ export default function DataPage() {
               className="font-sans pl-9 pr-4 py-2 rounded-xl border border-slate-200 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm w-full md:w-64 transition-shadow"
             />
           </div>
-          <button className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl shadow-sm hover:bg-slate-50 text-sm font-medium transition-colors font-sans">
-            <Filter className="w-4 h-4" />
-            Filter
-          </button>
+          
+          <div className="relative">
+            <select 
+              value={categoryFilter}
+              onChange={(e) => {
+                setCategoryFilter(e.target.value);
+                setPage(1);
+              }}
+              className="font-sans appearance-none pl-4 pr-10 py-2 rounded-xl border border-slate-200 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm w-full transition-shadow cursor-pointer"
+            >
+              <option value="Semua">Semua Kategori</option>
+              <option value="Anomali Ekstrem">Anomali Ekstrem</option>
+              <option value="Tinggi">Tinggi</option>
+              <option value="Sedang">Sedang</option>
+              <option value="Rendah">Rendah</option>
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+          </div>
+
+          <div className="relative">
+            <select 
+              value={sortBy}
+              onChange={(e) => {
+                setSortBy(e.target.value);
+                setPage(1);
+              }}
+              className="font-sans appearance-none pl-4 pr-10 py-2 rounded-xl border border-slate-200 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm w-full transition-shadow cursor-pointer"
+            >
+              <option value="risk_desc">Risiko (Tinggi ke Rendah)</option>
+              <option value="risk_asc">Risiko (Rendah ke Tinggi)</option>
+              <option value="pagu_desc">Pagu (Besar ke Kecil)</option>
+              <option value="pagu_asc">Pagu (Kecil ke Besar)</option>
+              <option value="waktu_desc">Waktu (Terbaru)</option>
+              <option value="waktu_asc">Waktu (Terlama)</option>
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+          </div>
         </div>
       </div>
 

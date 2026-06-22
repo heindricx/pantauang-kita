@@ -1,0 +1,143 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import * as echarts from "echarts";
+
+function MapComponent({ mapData, title }: { mapData: Record<string, unknown>, title: string }) {
+  const chartRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!chartRef.current || !mapData) return;
+    
+    // Register the map with a unique name based on the title
+    const mapName = title === 'Provinsi' ? 'indonesia-prov' : 'indonesia-kab';
+    echarts.registerMap(mapName, mapData as any);
+
+    const chartInstance = echarts.init(chartRef.current);
+    
+    // Generate some mock risk data based on the map features
+    const data = (mapData.features as Array<Record<string, unknown>>).map((feature: Record<string, any>) => ({
+      name: feature.properties.PROVINSI || feature.properties.WADMKK || feature.properties.name || "Unknown",
+      value: Math.floor(Math.random() * 100)
+    }));
+
+    const option: echarts.EChartsOption = {
+      title: {
+        text: `Peta Persebaran Risiko - Tingkat ${title}`,
+        left: 'center',
+        textStyle: {
+          color: '#1e293b',
+          fontSize: 20
+        }
+      },
+      tooltip: {
+        trigger: 'item',
+        formatter: '{b}<br/>Skor Risiko: {c}',
+        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+        borderColor: '#e2e8f0',
+        textStyle: { color: '#0f172a', fontWeight: 500 },
+        padding: [12, 16],
+        extraCssText: 'box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1); border-radius: 12px;'
+      },
+      visualMap: {
+        min: 0,
+        max: 100,
+        text: ['Tinggi', 'Rendah'],
+        realtime: false,
+        calculable: true,
+        inRange: {
+          color: ['#10b981', '#facc15', '#f97316', '#ef4444']
+        }
+      },
+      series: [
+        {
+          name: 'Skor Risiko',
+          type: 'map',
+          map: mapName,
+          nameProperty: title === 'Provinsi' ? 'PROVINSI' : 'WADMKK',
+          roam: true,
+          itemStyle: {
+            borderColor: '#fff',
+            borderWidth: 0.5
+          },
+          emphasis: {
+            label: { show: true },
+            itemStyle: {
+              areaColor: '#3b82f6'
+            }
+          },
+          data: data
+        }
+      ]
+    };
+
+    chartInstance.setOption(option);
+
+    const handleResize = () => {
+      chartInstance.resize();
+    };
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      chartInstance.dispose();
+      window.removeEventListener("resize", handleResize);
+    };
+  }, [mapData, title]);
+
+  return <div ref={chartRef} className="w-full h-[600px] rounded-2xl overflow-hidden shadow-inner border border-slate-200 bg-slate-50/50" />;
+}
+
+export default function PetaPage() {
+  const [level, setLevel] = useState<'Provinsi' | 'Kabupaten'>('Provinsi');
+  const [provinsiData, setProvinsiData] = useState<Record<string, unknown> | null>(null);
+  const [kabupatenData, setKabupatenData] = useState<Record<string, unknown> | null>(null);
+
+  useEffect(() => {
+    // Load GeoJSON data from public folder
+    fetch('/provinsi.json')
+      .then(res => res.json())
+      .then(data => setProvinsiData(data))
+      .catch(err => console.error("Error loading provinsi geojson:", err));
+
+    fetch('/kabupaten.json')
+      .then(res => res.json())
+      .then(data => setKabupatenData(data))
+      .catch(err => console.error("Error loading kabupaten geojson:", err));
+  }, []);
+
+  return (
+    <main className="container mx-auto px-4 sm:px-8 py-8 animate-in fade-in duration-500">
+      <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Peta Risiko Pengadaan</h1>
+          <p className="text-slate-500 mt-2">Persebaran tingkat risiko anomali di seluruh wilayah Indonesia.</p>
+        </div>
+
+        <div className="flex bg-slate-100 p-1 rounded-xl w-fit">
+          <button 
+            onClick={() => setLevel('Provinsi')}
+            className={`px-6 py-2 rounded-lg text-sm font-medium transition-all ${level === 'Provinsi' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+            Provinsi
+          </button>
+          <button 
+            onClick={() => setLevel('Kabupaten')}
+            className={`px-6 py-2 rounded-lg text-sm font-medium transition-all ${level === 'Kabupaten' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+            Kabupaten/Kota
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
+        {level === 'Provinsi' && (
+          provinsiData ? <MapComponent mapData={provinsiData} title="Provinsi" /> : <div className="h-[600px] flex items-center justify-center text-slate-500">Memuat peta provinsi...</div>
+        )}
+        {level === 'Kabupaten' && (
+          kabupatenData ? <MapComponent mapData={kabupatenData} title="Kabupaten" /> : <div className="h-[600px] flex items-center justify-center text-slate-500">Memuat peta kabupaten...</div>
+        )}
+      </div>
+    </main>
+  );
+}
